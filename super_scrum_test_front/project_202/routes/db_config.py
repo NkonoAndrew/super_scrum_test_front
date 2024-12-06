@@ -9,20 +9,11 @@ import pymysql
 from pydantic import BaseModel
 from fastapi import FastAPI
 import pymysql.cursors
+from .config import settings
 
 app = FastAPI()
 
-# Load environment variables
-load_dotenv()
-
-# access environment variables
-username = os.getenv('DB_USERNAME')
-password = os.getenv('DB_PASSWORD')
-host = os.getenv('DB_HOST')
-port = os.getenv('DB_PORT')
-database_name = os.getenv('DB_NAME')
-
-SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{username}:{password}@{host}:{port}/{database_name}"
+SQLALCHEMY_DATABASE_URL = f"mysql+pymysql://{settings.DB_USERNAME}:{settings.DB_PASSWORD}@{settings.DB_HOST}:{settings.DB_PORT}/{settings.DB_NAME}"
 
 engine = create_engine(SQLALCHEMY_DATABASE_URL)
 

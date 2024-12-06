@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 import Signup from './Signup';
 import Login from './Login';
@@ -7,6 +7,17 @@ import Login from './Login';
 const Header = ({ setSearchTerm }) => {
   const [showSignup, setShowSignup] = useState(false);
   const [showLogin, setShowLogin] = useState(false);
+  const [user, setUser] = useState(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const token = localStorage.getItem('access_token');
+    const userInfo = localStorage.getItem('user');
+    
+    if (token && userInfo) {
+      setUser(JSON.parse(userInfo));
+    }
+  }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
@@ -18,15 +29,37 @@ const Header = ({ setSearchTerm }) => {
 
   const handleSignupClick = () => {
     setShowSignup(true);
+    setShowLogin(false);
   };
 
   const handleLoginClick = () => {
     setShowLogin(true);
+    setShowSignup(false);
   };
 
   const handleCloseModal = () => {
     setShowSignup(false);
     setShowLogin(false);
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('access_token');
+    localStorage.removeItem('user');
+    setUser(null);
+    navigate('/');
+  };
+
+  const handleBusinessClick = () => {
+    const token = localStorage.getItem('access_token');
+    if (!token) {
+      setShowLogin(true);
+      return;
+    }
+    if (user?.user_type !== 'owner') {
+      alert('Only business owners can access this section');
+      return;
+    }
+    navigate('/business');
   };
 
   return (
@@ -40,57 +73,114 @@ const Header = ({ setSearchTerm }) => {
             placeholder="Search restaurants..."
             autoComplete="off"
           />
-          <SearchButton type="submit">
-            Search
-          </SearchButton>
+          <SearchButton type="submit">Search</SearchButton>
         </SearchForm>
+        
         <NavList>
+        {(!user || (user.user_type !== 'admin' && user.user_type !== 'user')) && (
           <NavItem>
-            <StyledNavLink to="/business">Business Owner?</StyledNavLink>
+            <StyledButton onClick={handleBusinessClick}>
+              Business Owner?
+            </StyledButton>
           </NavItem>
+        )}
+
+
+        {user && user.user_type === 'admin' && (
           <NavItem>
-            <StyledButton onClick={handleLoginClick}>Login</StyledButton>
+            <StyledAdminLink to="/admin">
+              Admin Panel
+              
+            </StyledAdminLink>
           </NavItem>
-          <NavItem>
-            <StyledButton onClick={handleSignupClick}>Signup</StyledButton>
-          </NavItem>
+        )}
+
+          
+          {user ? (
+            <>
+              <NavItem>
+                <span className="mr-2">Welcome, {user.username}</span>
+              </NavItem>
+              <NavItem>
+                <StyledButton onClick={handleLogout}>Logout</StyledButton>
+              </NavItem>
+            </>
+          ) : (
+            <>
+              <NavItem>
+                <StyledButton onClick={handleLoginClick}>Login</StyledButton>
+              </NavItem>
+              <NavItem>
+                <StyledButton onClick={handleSignupClick}>Signup</StyledButton>
+              </NavItem>
+            </>
+          )}
         </NavList>
       </NavContainer>
 
-      {/* Signup Modal */}
       {showSignup && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-auto relative">
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 focus:outline-none"
-            >
-              &times;
-            </button>
-            <Signup />
-          </div>
-        </div>
+        <ModalOverlay>
+          <ModalContent>
+            <CloseButton onClick={handleCloseModal}>&times;</CloseButton>
+            <Signup 
+              setShowLogin={setShowLogin} 
+              setShowSignup={setShowSignup} 
+            />
+          </ModalContent>
+        </ModalOverlay>
       )}
 
-      {/* Login Modal */}
       {showLogin && (
-        <div className="fixed inset-0 flex items-center justify-center bg-gray-800 bg-opacity-75">
-          <div className="bg-white rounded-lg p-6 w-full max-w-md mx-auto relative">
-            <button
-              onClick={handleCloseModal}
-              className="absolute top-2 right-2 text-gray-500 hover:text-gray-700 focus:outline-none"
-            >
-              &times;
-            </button>
-            <Login />
-          </div>
-        </div>
+        <ModalOverlay>
+          <ModalContent>
+            <CloseButton onClick={handleCloseModal}>&times;</CloseButton>
+            <Login 
+              setShowLogin={setShowLogin}
+              setUser={setUser} 
+            />
+          </ModalContent>
+        </ModalOverlay>
       )}
     </header>
   );
 };
 
-// Styled Components
+// styled components
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.75);
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background: white;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  width: 100%;
+  max-width: 28rem;
+  margin: 0 auto;
+  position: relative;
+`;
+
+const CloseButton = styled.button`
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: #666;
+  font-size: 1.5rem;
+  background: none;
+  border: none;
+  cursor: pointer;
+  
+  &:hover {
+    color: #333;
+  }
+`;
+
 const NavContainer = styled.nav`
   display: flex;
   justify-content: space-between;
@@ -103,11 +193,16 @@ const NavList = styled.ul`
   list-style: none;
   margin: 0;
   padding: 0;
+  align-items: center;  
+  gap: 1rem;  
 `;
 
 const NavItem = styled.li`
-  margin-left: 1rem;
-  padding: 0.3rem 0.5rem;
+  display: flex;  
+  align-items: center;  
+  height: 100%;  
+  margin: 0;  
+  padding: 0;  
 `;
 
 const StyledNavLink = styled(NavLink)`
@@ -117,6 +212,20 @@ const StyledNavLink = styled(NavLink)`
 
   &:hover {
     text-decoration: underline;
+  }
+`;
+
+const StyledAdminLink = styled(StyledNavLink)`
+  background-color: #f59e0b;
+  padding: 0.5rem 1rem;
+  border-radius: 20px;
+  display: flex;  
+  align-items: center;  
+  height: 100%;  
+  
+  &:hover {
+    background-color: #d97706;
+    text-decoration: none;
   }
 `;
 
